@@ -10,5 +10,14 @@ tokio = { version = "1", features = ["full"] }
 eventstore = "3.0.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+uuid = "0.8"
 tokio-stream = "0.1"
+dotenv = "0.15"
 
+[[bin]]
+name = "daemon"
+path = "src/bootstrap/main.rs"
+
+[[bin]]
+name = "client"
+path = "src/crablicator/main.rs"

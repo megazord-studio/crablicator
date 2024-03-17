@@ -4,6 +4,8 @@ use eventstore::{Client, ClientSettings, ReadAllOptions, StreamPosition, Resolve
 use std::error::Error;
 use dotenv::dotenv;
 use tokio::sync::mpsc;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 mod migrations;
 
@@ -39,16 +41,42 @@ async fn writer(
     Ok(())
 }
 
+async fn worker(
+    id: usize,
+    client: &Client,
+    mut rx: mpsc::Receiver<ResolvedEvent>
+) {
+    while let Some(event) = rx.recv().await {
+        let original_event = event.get_original_event();
+        if let Err(e) = writer(&client, original_event).await {
+            eprintln!("Error processing event in worker {}: {}", id, e);
+        }
+    }
+}
+
 async fn write_events(
     client: &Client,
     rx: &mut mpsc::Receiver<ResolvedEvent>,
 ) -> Result<(), Box<dyn Error>> {
+    let (txs, rxs): (Vec<_>, Vec<_>) = (
+        0..WORKERS).map(|_| mpsc::channel::<ResolvedEvent>(100)).unzip();
+    for (i, rx) in rxs.into_iter().enumerate() {
+        let worker_client = client.clone();
+        tokio::spawn(async move {
+            worker(i, &worker_client, rx).await;
+        });
+    }
     while let Some(event) = rx.recv().await {
         let original_event = event.get_original_event();
         let event_stream_id = original_event.stream_id.clone();
-        // split into different workers based on stream id
-        writer(client, original_event).await?;
+        let mut hasher = DefaultHasher::new();
+        event_stream_id.hash(&mut hasher);
+        let worker_index = (hasher.finish() as usize) % WORKERS;
+        if let Err(e) = txs[worker_index].send(event).await {
+            eprintln!("Failed to send event to worker {}: {}", worker_index, e);
+        }
     }
+
     Ok(())
 }
 

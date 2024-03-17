@@ -1,7 +1,9 @@
 use tokio;
-use uuid::Uuid;
+// use uuid::Uuid;
+use std::env;
 use serde::{Serialize, Deserialize};
-use eventstore::{Client, ClientSettings, EventData};
+//use eventstore::{Client, ClientSettings, EventData};
+// use eventstore::{ClientSettings};
 use std::error::Error;
 use dotenv::dotenv;
 
@@ -14,25 +16,10 @@ struct TestEvent {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
-    let connection_string = env::var("CONNECTION_STRING")?
-        .parse::<ClientSettings>()?;
-    let settings = ClientSettings::parse(connection_string)?;
-
-    let client = Client::new(settings)?;
-
-    let event = TestEvent {
-        id: Uuid::new_v4().to_string(),
-        important_data: "I wrote my first event!".to_string(),
-    };
-
-    // Serialize the event into JSON.
-    let event_data = EventData::json("TestEvent", &event)?
-        .id(Uuid::new_v4()); // Associate a unique identifier with the event data
-
-    // Append the event data to a stream.
-    client
-        .append_to_stream("some-stream", &Default::default(), event_data)
-        .await?;
+    println!("{}", env::var("CONNECTION_STRING")?);
+    //let connection_string = env::var("CONNECTION_STRING")?
+        //.parse::<ClientSettings>()?;
+    // println!("{:?}", connection_string);
 
     Ok(())
 }

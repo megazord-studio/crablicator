@@ -15,9 +15,9 @@ tokio-stream = "0.1"
 dotenv = "0.15"
 
 [[bin]]
-name = "daemon"
+name = "bootstrap"
 path = "src/bootstrap/main.rs"
 
 [[bin]]
-name = "client"
+name = "crablicator"
 path = "src/crablicator/main.rs"

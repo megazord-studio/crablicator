@@ -1,7 +1,6 @@
 use tokio;
 use std::env;
-//use eventstore::{Client, ClientSettings, ReadAllOptions, StreamPosition, EventData, AppendToStreamOptions, ExpectedRevision, ReadResult};
-use eventstore::{Client, ClientSettings, ReadAllOptions, StreamPosition, EventData, ReadEventResult, ResolvedEvent};
+use eventstore::{Client, ClientSettings, ReadAllOptions, StreamPosition, ResolvedEvent, AppendToStreamOptions, ExpectedRevision, EventData};
 use std::error::Error;
 use dotenv::dotenv;
 use tokio::sync::mpsc;
@@ -17,21 +16,27 @@ async fn read_events(
         .forwards();
     let mut stream = client.read_all(&options).await?;
     while let Some(event) = stream.next().await? {
-        tx.send(event).await.expect("Failed to send tx event");
+        tx.send(event).await.expect("Failed to tx event");
     };
     Ok(())
 }
 
 async fn write_events(
-    _client: &Client,
+    client: &Client,
     rx: &mut mpsc::Receiver<ResolvedEvent>,
 ) -> Result<(), Box<dyn Error>> {
+    let options = AppendToStreamOptions::default()
+        .expected_revision(ExpectedRevision::Any);
     while let Some(event) = rx.recv().await {
-//        let stream = event
-//        let options = AppendToStreamOptions::default()
-//            .expected_revision(ExpectedRevision::Any);
-//        client.append_to_stream(stream.clone(), &options, evt).await?;
-        println!("Event> {:?}", event);
+        let original_event = event.get_original_event();
+        let new_event = EventData::binary(
+            original_event.event_type.clone(),
+            original_event.data.clone()
+        );
+        client.append_to_stream(
+            event.get_original_event().stream_id.to_string(),
+            &options,
+            new_event).await?;
     }
     Ok(())
 }
@@ -39,19 +44,20 @@ async fn write_events(
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
-    let settings = env::var("CONNECTION_STRING")?
+    let origin_settings = env::var("ORIGIN_CONNECTION_STRING")?
         .parse::<ClientSettings>()?;
-    let client = Client::new(settings)?;
-    let client_clone = client.clone();
-    let (tx, mut rx) = mpsc::channel::<ResolvedEvent>(WORKERS);
-
+    let destination_settings = env::var("DESTINATION_CONNECTION_STRING")?
+        .parse::<ClientSettings>()?;
+    let origin_client = Client::new(origin_settings)?;
+    let destination_client = Client::new(destination_settings)?;
+    let (tx, mut rx) = mpsc::channel::<ResolvedEvent>(10000);
     let reader_handle = tokio::spawn(async move {
-        read_events(&client_clone, &tx).await.expect("Failed to read event");
+        read_events(&origin_client, &tx)
+            .await.expect("Failed to read event");
     });
-
-    // Spawn write_events task and get its JoinHandle
     let writer_handle = tokio::spawn(async move {
-        write_events(&client, &mut rx).await.expect("Failed to write event");
+        write_events(&destination_client, &mut rx)
+            .await.expect("Failed to write event");
     });
     let _ = reader_handle.await;
     let _ = writer_handle.await;

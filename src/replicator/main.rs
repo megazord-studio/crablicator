@@ -83,6 +83,7 @@ async fn write_events(
 }
 
 async fn worker(client: &Client, mut rx: mpsc::Receiver<ResolvedEvent>) {
+    //https://chat.openai.com/share/c60a64cb-846c-4160-9f6d-2fd0a3a76c8d
     while let Some(event) = rx.recv().await {
         if let Err(e) = append_to_stream(&client, &event).await {
             eprintln!("Error in append_to_stream {}", e);

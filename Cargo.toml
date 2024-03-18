@@ -16,11 +16,12 @@ dotenv = "0.15"
 rand = "0.8"
 futures = "0.3"
 bytes = "1.1"
+warp = "0.3.6"
 
 [[bin]]
 name = "generator"
 path = "src/generator/main.rs"
 
 [[bin]]
-name = "crablicator"
+name = "replicator"
 path = "src/replicator/main.rs"

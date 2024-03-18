@@ -11,6 +11,8 @@ use tokio;
 use tokio::sync::mpsc;
 
 use crablicator::util::esdb;
+// use crablicator::util::stats;
+mod dashboard;
 mod transformations;
 
 const WORKERS: usize = 10;
@@ -20,7 +22,7 @@ const CHANNEL_BUFFER_SIZE: usize = 1000000;
 async fn main() -> Result<(), Box<dyn Error>> {
     dotenv().ok();
     let reader_client = esdb::get_client(&env::var("REPLICATOR_READER_CONNECTION_STRING")?)?;
-    let writer_client = esdb::get_client(&env::var("REPLICATOR_READER_CONNECTION_STRING")?)?;
+    let writer_client = esdb::get_client(&env::var("REPLICATOR_WRITER_CONNECTION_STRING")?)?;
     let (tx, mut rx) = mpsc::channel::<ResolvedEvent>(CHANNEL_BUFFER_SIZE);
     let reader_handle = tokio::spawn(async move {
         read_events(&reader_client, &tx)
@@ -32,7 +34,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
             .await
             .expect("Error in write_events");
     });
-    futures::future::join_all([reader_handle, writer_handle]).await;
+
+    let server_handle = dashboard::run_server();
+    futures::future::join_all([reader_handle, writer_handle, server_handle]).await;
     Ok(())
 }
 

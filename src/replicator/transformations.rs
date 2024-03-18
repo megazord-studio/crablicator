@@ -18,5 +18,5 @@ pub async fn transform_event(
         //
         return Ok(EventData::json(event_type.clone(), event)?);
     }
-    return Ok(EventData::binary(event_type.clone(), event_data));
+    Ok(EventData::binary(event_type.clone(), event_data))
 }

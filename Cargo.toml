@@ -18,9 +18,9 @@ futures = "0.3"
 bytes = "1.1"
 
 [[bin]]
-name = "bootstrap"
-path = "src/bootstrap/main.rs"
+name = "generator"
+path = "src/generator/main.rs"
 
 [[bin]]
 name = "crablicator"
-path = "src/crablicator/main.rs"
+path = "src/replicator/main.rs"
